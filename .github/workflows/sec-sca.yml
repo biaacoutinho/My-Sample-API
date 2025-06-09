@@ -5,9 +5,9 @@
 name: Security-SCA
 
 on:
-  #push:
-  #pull_request:
-    #branches: [main]
+  push:
+  pull_request:
+    branches: [main]
   # Allow the workflow to be triggered by manual dispatch, push, or pull request events
   workflow_call:
   # Trigger the workflow on manual dispatch or push/pull request events
