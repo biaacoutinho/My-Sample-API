@@ -16,36 +16,25 @@ spec:
         prometeus.io/path: "/metrics"
         prometeus.io/scrape: "true"
     spec:
+      # Adicionando securityContext no nível do pod
+      securityContext:
+        fsGroup: 1000
+        runAsNonRoot: true
+        runAsUser: 1000
+        runAsGroup: 1000
       containers:
         - name: api
-          image: myapp:1.0.0
-          ports:
-            - containerPort: 8080
-          livenessProbe:
-            httpGet:
-              path: /health
-              port: 8080
-            initialDelaySeconds: 5
-            timeoutSeconds: 1
-            successThreshold: 1
-            failureThreshold: 1
-          readinessProbe:
-            httpGet:
-              path: /ready
-              port: 8080
-            initialDelaySeconds: 10
-            timeoutSeconds: 1
-            successThreshold: 1
-            failureThreshold: 1
-          resources:
-            requests:
-              cpu: "150m"
-              memory: "32Mi"
-              storage: "1Gi"
-            limits:
-              cpu: "300m"
-              memory: "64Mi"
-          automountServiceAccountToken: false
+          image: brunobotelhobr/my-sample-api:latest
+          # Adicionando securityContext no nível do container
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+                - ALL
+            readOnlyRootFilesystem: true
+            runAsNonRoot: true
+            runAsUser: 1000
+            runAsGroup: 1000
 
 ---
 apiVersion: v1
