@@ -35,31 +35,6 @@ spec:
             runAsNonRoot: true
             runAsUser: 1000
             runAsGroup: 1000
-          ports:
-            - containerPort: 8080
-          livenessProbe:
-            httpGet:
-              path: /health
-              port: 8080
-            initialDelaySeconds: 5
-            timeoutSeconds: 1
-            successThreshold: 1
-            failureThreshold: 1
-          readinessProbe:
-            httpGet:
-              path: /ready
-              port: 8080
-            initialDelaySeconds: 10
-            timeoutSeconds: 1
-            successThreshold: 1
-            failureThreshold: 1
-          resources:
-            requests:
-              cpu: "150m"
-              memory: "32Mi"
-            limits:
-              cpu: "300m"
-              memory: "64Mi"
 
 ---
 apiVersion: v1
