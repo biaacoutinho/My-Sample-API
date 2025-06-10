@@ -1,9 +1,10 @@
 name: CI
 
 on: 
+  workflow_call:
+  workflow_dispatch:
   push:
   pull_request:
-  workflow_dispatch:
 
 jobs:
   CI:
@@ -16,6 +17,9 @@ jobs:
     steps:
       - name: Download Code
         uses: actions/checkout@v3
+
+      - name: Checkout code
+        uses: actions/checkout@v4
 
       - name: Setup Python
         uses: actions/setup-python@v4
@@ -51,6 +55,7 @@ jobs:
           # Generate reports
           njsscan --json -o sast-njsscan-report.json .
           njsscan --sarif -o sast-njsscan-report.sarif .
+
 
       - name: SAST - NJSScan Reports Attachment
         uses: actions/upload-artifact@v4
