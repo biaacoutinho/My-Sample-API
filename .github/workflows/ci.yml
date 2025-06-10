@@ -1,6 +1,9 @@
 name: CI
 
-on: [push, workflow_dispatch]
+on: 
+  push:
+  pull_request:
+  workflow_dispatch:
 
 jobs:
   CI:
@@ -20,10 +23,13 @@ jobs:
           python-version: '3.11'
 
       - name: SAST - Horusec
+        id: horusec
+        continue-on-error: true
         run: |
           curl -fsSL https://raw.githubusercontent.com/ZupIT/horusec/main/deployments/scripts/install.sh | bash -s latest-beta
-          horusec start -p="./" -e="false"
-          # Run horusec and generate the report.
+          # Run horusec and capture exit code
+          horusec start -p="./" -e="true" || echo "HORUSEC_FAILED=true" >> $GITHUB_ENV
+          # Generate reports regardless of success/failure
           horusec start -p="./" -e="false" --output-format sarif --json-output-file sast-horusec-report.sarif ./
           horusec start -p="./" -e="false" --output-format json --json-output-file sast-horusec-report.json ./
           horusec start -p="./" -e="false" --output-format text --json-output-file sast-horusec-report.txt ./
@@ -36,16 +42,15 @@ jobs:
             sast-horusec-report.*
 
       - name: SAST - NJSScan
+        id: njsscan
+        continue-on-error: true
         run: |
           pip install njsscan
-          # Run njsscan
-          njsscan . || true
-          # Generate Report in JSON.
-          njsscan --json -o sast-njsscan-report.json . || true
-          # Generate Report in SARIF.
-          njsscan --sarif -o sast-njsscan-report.sarif . || true
-          # Generate Report in HTML.
-          njsscan --html -o sast-njsscan-report.html . || true
+          # Run njsscan and capture exit code
+          njsscan . || echo "NJSSCAN_FAILED=true" >> $GITHUB_ENV
+          # Generate reports
+          njsscan --json -o sast-njsscan-report.json .
+          njsscan --sarif -o sast-njsscan-report.sarif .
 
       - name: SAST - NJSScan Reports Attachment
         uses: actions/upload-artifact@v4
@@ -55,16 +60,18 @@ jobs:
             sast-njsscan-report.*
 
       - name: SCA - Trivy
+        id: trivy-fs
         uses: aquasecurity/trivy-action@master
         with:
           scan-type: 'fs'
           hide-progress: false
-          exit-code: '0'
+          exit-code: '1'  # Fail on vulnerabilities
           format: 'sarif'
           output: 'sca-trivy.sarif'
           ignore-unfixed: true
-          severity: 'UNKNOWN,LOW,MEDIUM,HIGH,CRITICAL'
+          severity: 'HIGH,CRITICAL'  # Only fail on high and critical
           skip-dirs: ./test
+        continue-on-error: true
 
       - name: SCA - Trivy Reports Attachment
         uses: actions/upload-artifact@v4
@@ -74,16 +81,18 @@ jobs:
             sca-trivy.sarif
 
       - name: IAC Scan - Trivy
+        id: trivy-iac
         uses: aquasecurity/trivy-action@master
         with:
           scan-type: 'config'
           hide-progress: false
-          exit-code: '0'
+          exit-code: '1'  # Fail on vulnerabilities
           format: 'sarif'
           output: 'iac-scan-trivy.sarif'
           ignore-unfixed: true
-          severity: 'UNKNOWN,LOW,MEDIUM,HIGH,CRITICAL'
+          severity: 'HIGH,CRITICAL'  # Only fail on high and critical
           skip-dirs: ./test
+        continue-on-error: true
 
       - name: IAC Scan - Trivy Reports Attachment
         uses: actions/upload-artifact@v4
@@ -92,13 +101,22 @@ jobs:
           path: |
             iac-scan-trivy.sarif
 
+      - name: Check for security issues
+        if: ${{ env.HORUSEC_FAILED == 'true' || env.NJSSCAN_FAILED == 'true' || steps.trivy-fs.outcome == 'failure' || steps.trivy-iac.outcome == 'failure' }}
+        run: |
+          echo "Security issues were found in the code. Please fix them before merging."
+          exit 1
+
+      # Only proceed with Docker build if security checks pass
       - name: DockerHub Login
+        if: ${{ success() }}
         uses: docker/login-action@v2
         with:
           username: ${{ secrets.DOCKERHUB_LOGIN }}
           password: ${{ secrets.DOCKERHUB_PASS }}
 
       - name: Build Artefacts
+        if: ${{ success() }}
         uses: docker/build-push-action@v3
         with:
           context: .
@@ -109,6 +127,8 @@ jobs:
             brunobotelhobr/my-sample-api:latest
 
       - name: SCA Artefacts
+        if: ${{ success() }}
+        id: trivy-image
         uses: aquasecurity/trivy-action@master
         with:
           scan-type: 'image'
@@ -116,13 +136,21 @@ jobs:
           hide-progress: false
           format: 'sarif'
           output: 'sca-trivy-image.sarif'
-          exit-code: '0'
+          exit-code: '1'  # Fail on vulnerabilities
           ignore-unfixed: true
-          severity: 'UNKNOWN,LOW,MEDIUM,HIGH,CRITICAL'
+          severity: 'HIGH,CRITICAL'  # Only fail on high and critical
+        continue-on-error: true
       
       - name: SCA Artefacts Reports Attachment
+        if: ${{ always() }}
         uses: actions/upload-artifact@v4
         with:
           name: sca-trivy-image-reports
           path: |
             sca-trivy-image.sarif
+            
+      - name: Final Check
+        if: ${{ steps.trivy-image.outcome == 'failure' }}
+        run: |
+          echo "Security issues were found in the Docker image. Please fix them before merging."
+          exit 1
