@@ -18,7 +18,7 @@
   "homepage": "https://github.com/KubeDev/api-conversao#readme",
   "dependencies": {
     "body": "^5.1.0",
-    "express": "^4.17.1",
+    "express": "^4.21.2",
     "lodash": "^4.17.15",
     "node-serialize": "^0.0.4",
     "nodehog": "^0.1.2",
