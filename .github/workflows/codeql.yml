@@ -11,6 +11,15 @@ jobs:
     permissions:
       security-events: write
       contents: read
+
+    strategy:
+      fail-fast: 'true'
+      matrix:
+        include:
+        - language: javascript-typescript
+          build-mode: none
+        - language: actions
+          build-mode: none
     steps:
     - name: Checkout repository
       uses: actions/checkout@v4
