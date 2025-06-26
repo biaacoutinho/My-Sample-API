@@ -1,36 +1,34 @@
 name: "CodeQL Analysis"
 
 on:
-  pull_request:
-    branches: [main]
+pull_request:
+branches: [main]
+
 
 jobs:
-  analyze:
-    name: Analyze (JavaScript)
-    runs-on: ubuntu-latest
-    permissions:
-      security-events: write
-      contents: read
+analyze:
+name: Analyze (JavaScript)
+runs-on: ubuntu-latest
+permissions:
+security-events: write
+contents: read
 
-    strategy:
-      fail-fast: true
-      matrix:
-        include:
-          - language: javascript
-            build-mode: none
-          - language: typescript
-            build-mode: none
-            
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
 
-      - name: Initialize CodeQL
-        uses: github/codeql-action/init@v3
-        with:
-          languages: javascript, typescript
+strategy:
+  fail-fast: true
+  matrix:
+    include:
+    - language: javascript-typescript
+      build-mode: none
+steps:
+- name: Checkout repository
+  uses: actions/checkout@v4
 
-      - name: Perform CodeQL Analysis
-        uses: github/codeql-action/analyze@v3
-        with:
-          category: "/language:javascript"
+- name: Initialize CodeQL
+  uses: github/codeql-action/init@v3
+  with:
+    languages: javascript
+- name: Perform CodeQL Analysis
+  uses: github/codeql-action/analyze@v3
+  with:
+    category: "/language:javascript"
